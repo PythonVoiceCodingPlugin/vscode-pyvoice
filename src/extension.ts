@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient, ExecuteCommandRequest } from 'vscode-languageclient/node';
 import { registerLogger, traceError, traceLog, traceVerbose } from './common/log/logging';
 import {
     checkVersion,
@@ -17,6 +17,11 @@ import { loadServerDefaults } from './common/setup';
 import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
 
+import { send_voicerpc_notification } from "./common/rpc";
+
+
+
+let last_tick = Date.now();
 let lsClient: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     // This is required to get server name and module. This should be
@@ -62,14 +67,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         if (interpreterDetails.path) {
             traceVerbose(`Using interpreter from Python extension: ${interpreterDetails.path.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
+            lsClient?.onNotification("voice/sendRpc", (params) => {
+                send_voicerpc_notification("default", params.command, params.params);
+            });
             return;
         }
 
         traceError(
             'Python interpreter missing:\r\n' +
-                '[Option 1] Select python interpreter using the ms-python.python.\r\n' +
-                `[Option 2] Set an interpreter using "${serverId}.interpreter" setting.\r\n` +
-                'Please use Python 3.8 or greater.',
+            '[Option 1] Select python interprete using the ms-python.python.\r\n' +
+            `[Option 2] Set an interpreter using "${serverId}.interpreter" setting.\r\n` +
+            'Please use Python 3.8 or greater.',
         );
     };
 
@@ -84,6 +92,77 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
         registerCommand(`${serverId}.restart`, async () => {
             await runServer();
+        }),
+
+        // pyvoice stuff
+        vscode.window.onDidChangeActiveTextEditor((e) => {
+            if (e?.document.languageId === "python") {
+                traceLog(Date.now() - last_tick);
+                if (Date.now() - last_tick < 3000) {
+                    traceLog("too fast");
+                    return;
+                }
+                last_tick = Date.now();
+                vscode.commands.executeCommand(`${serverId}.get_spoken`, 
+                    lsClient?.code2ProtocolConverter.asTextDocumentIdentifier(e?.document).uri,
+                    e?.selections.map((it) => lsClient?.code2ProtocolConverter.asRange(it))[0]?.start
+                );
+            }
+        }),
+        vscode.workspace.onDidChangeTextDocument((e) => {
+            if (e?.document.languageId === "python") {
+                if (Date.now() - last_tick < 3000) {
+                    traceLog("too fast");
+                    return;
+                }
+                last_tick = Date.now();
+                if (vscode.window.activeTextEditor?.document.uri !== e?.document.uri) {
+                    traceLog("changes not in active text editor");
+                    return;
+                }
+                vscode.commands.executeCommand(`${serverId}.get_spoken`, "$file_uri", "$position");
+            }
+        }),
+        registerCommand(`${serverId}.get_spoken`, async () => {
+            var editor = vscode.window.activeTextEditor;
+            if (typeof editor === 'undefined') {
+                return;
+            }
+            lsClient?.sendRequest("workspace/executeCommand", {
+                command: "get_spoken",
+                arguments: [
+                    lsClient?.code2ProtocolConverter.asTextDocumentIdentifier(editor?.document).uri,
+                    editor?.selections.map((it) => lsClient?.code2ProtocolConverter.asRange(it))[0]?.start
+                ]
+            })
+        }),
+        // register command that executes a given command on the language3 server
+        // arguments $file_uri and $position should be expanded by the command
+        registerCommand(`${serverId}.lsp_execute`, async (command_name: string, command_args: any[]) => {
+            traceLog("lsp_execute", command_name, command_args);
+            var editor = vscode.window.activeTextEditor;
+            if (typeof editor === 'undefined') {
+                return;
+            }
+            const expand_args = (arg: any) => {
+                if (typeof editor === 'undefined') {
+                    return arg;
+                } 
+                if (arg === "$file_uri") {
+                    return lsClient?.code2ProtocolConverter.asTextDocumentIdentifier(editor.document).uri;
+                } else if (arg === "$position") {
+                    return editor?.selections.map((it) => lsClient?.code2ProtocolConverter.asRange(it))[0]?.start;
+                } else {
+                    return arg;
+                }
+            }
+            var args = command_args.map(expand_args);
+            traceLog("lsp_execute", command_name, args);
+
+            lsClient?.sendRequest("workspace/executeCommand", {
+                command: command_name,
+                arguments: args
+            });
         }),
     );
 

@@ -151,7 +151,7 @@ This can occurs if `bundled/libs` is empty. That is the folder where we put your
 
 Common one is [_pygls_][pygls] module not found.
 
-# TODO: The maintainer of this repo has not yet edited this file
+
 
 **Repo Owner** Make sure you update this. As a repository owner you will need to update this file with specific instructions for your extension.
 

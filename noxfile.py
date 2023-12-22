@@ -1,11 +1,13 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 """All the action we need during build"""
-
+import io
 import json
 import os
 import pathlib
+import re
 import urllib.request as url_lib
+import zipfile
 from typing import List
 
 import nox  # pylint: disable=import-error
@@ -16,13 +18,16 @@ def _install_bundle(session: nox.Session) -> None:
         "-t",
         "./bundled/libs",
         "--no-cache-dir",
-        "--implementation",
-        "py",
-        "--no-deps",
+        # "--implementation",
+        # "py",
+        # "--only-binary",
         "--upgrade",
         "-r",
         "./requirements.txt",
     )
+
+    session.install("packaging")
+    _install_wheels(f"{os.getcwd()}/bundled/libs", "libcst")
 
 
 def _check_files(names: List[str]) -> None:
@@ -35,11 +40,10 @@ def _check_files(names: List[str]) -> None:
 
 
 def _update_pip_packages(session: nox.Session) -> None:
-    session.run("pip-compile", "--generate-hashes", "--resolver=backtracking", "--upgrade", "./requirements.in")
+    session.run("pip-compile", "--generate-hashes", "--upgrade", "./requirements.in")
     session.run(
         "pip-compile",
         "--generate-hashes",
-        "--resolver=backtracking",
         "--upgrade",
         "./src/test/python_tests/requirements.in",
     )
@@ -86,25 +90,27 @@ def _update_npm_packages(session: nox.Session) -> None:
     if not new_package_json.endswith("\n"):
         new_package_json += "\n"
     package_json_path.write_text(new_package_json, encoding="utf-8")
+
+    session.run("npm", "audit", "fix", external=True)
     session.run("npm", "install", external=True)
 
 
 def _setup_template_environment(session: nox.Session) -> None:
     session.install("wheel", "pip-tools")
-    session.run("pip-compile", "--generate-hashes", "--resolver=backtracking", "--upgrade", "./requirements.in")
-    session.run(
-        "pip-compile",
-        "--generate-hashes",
-        "--resolver=backtracking",
-        "--upgrade",
-        "./src/test/python_tests/requirements.in",
-    )
+    _update_pip_packages(session)
     _install_bundle(session)
 
 
-@nox.session()
+@nox.session(python="3.7")
+def install_bundled_libs(session):
+    """Installs the libraries that will be bundled with the extension."""
+    session.install("wheel")
+    _install_bundle(session)
+
+
+@nox.session(python="3.7")
 def setup(session: nox.Session) -> None:
-    """Sets up the template for development."""
+    """Sets up the extension for development."""
     _setup_template_environment(session)
 
 
@@ -114,23 +120,25 @@ def tests(session: nox.Session) -> None:
     session.install("-r", "src/test/python_tests/requirements.txt")
     session.run("pytest", "src/test/python_tests")
 
+    session.install("freezegun")
+    session.run("pytest", "build")
+
 
 @nox.session()
 def lint(session: nox.Session) -> None:
     """Runs linter and formatter checks on python files."""
-    session.install("-r", "./requirements.txt")
+    session.install("-r" "./requirements.txt")
     session.install("-r", "src/test/python_tests/requirements.txt")
 
-    session.install("pylint")
-    session.run("pylint", "-d", "W0511", "./bundled/tool")
+    session.install("flake8")
+    session.run("flake8", "./bundled/tool")
     session.run(
-        "pylint",
-        "-d",
-        "W0511",
-        "--ignore=./src/test/python_tests/test_data",
+        "flake8",
+        "--extend-exclude",
+        "./src/test/python_tests/test_data",
         "./src/test/python_tests",
     )
-    session.run("pylint", "-d", "W0511", "noxfile.py")
+    session.run("flake8", "noxfile.py")
 
     # check formatting using black
     session.install("black")
@@ -148,7 +156,7 @@ def lint(session: nox.Session) -> None:
     session.run("npm", "run", "lint", external=True)
 
 
-@nox.session()
+@nox.session(python="3.8")
 def build_package(session: nox.Session) -> None:
     """Builds VSIX package for publishing."""
     _check_files(["README.md", "LICENSE", "SECURITY.md", "SUPPORT.md"])
@@ -158,8 +166,116 @@ def build_package(session: nox.Session) -> None:
 
 
 @nox.session()
+def update_build_number(session: nox.Session) -> None:
+    """Updates build number for the extension."""
+    if len(session.posargs) == 0:
+        session.log("No updates to package version")
+        return
+
+    package_json_path = pathlib.Path(__file__).parent / "package.json"
+    session.log(f"Reading package.json at: {package_json_path}")
+
+    package_json = json.loads(package_json_path.read_text(encoding="utf-8"))
+
+    parts = re.split("\\.|-", package_json["version"])
+    major, minor = parts[:2]
+
+    version = f"{major}.{minor}.{session.posargs[0]}"
+    version = version if len(parts) == 3 else f"{version}-{''.join(parts[3:])}"
+
+    session.log(f"Updating version from {package_json['version']} to {version}")
+    package_json["version"] = version
+    package_json_path.write_text(json.dumps(package_json, indent=4), encoding="utf-8")
+
+
+def _get_module_name() -> str:
+    package_json_path = pathlib.Path(__file__).parent / "package.json"
+    package_json = json.loads(package_json_path.read_text(encoding="utf-8"))
+    return package_json["serverInfo"]["module"]
+
+
+@nox.session(python="3.8")
+def validate_readme(session: nox.Session) -> None:
+    """Ensures the formatter version in 'requirements.txt' matches 'readme.md'."""
+    requirements_file = pathlib.Path(__file__).parent / "requirements.txt"
+    readme_file = pathlib.Path(__file__).parent / "README.md"
+
+    lines = requirements_file.read_text(encoding="utf-8").splitlines(keepends=False)
+    module = _get_module_name()
+    formatter_ver = list(line for line in lines if line.startswith(module))[0]
+    name, version = formatter_ver.split(" ")[0].split("==")
+
+    session.log(f"Looking for {name}={version} in README.md")
+    content = readme_file.read_text(encoding="utf-8")
+    if f"{name}={version}" not in content:
+        raise ValueError(f"Formatter info {name}={version} was not found in README.md.")
+    session.log(f"FOUND {name}={version} in README.md")
+
+
+def _update_readme() -> None:
+    requirements_file = pathlib.Path(__file__).parent / "requirements.txt"
+    lines = requirements_file.read_text(encoding="utf-8").splitlines(keepends=False)
+    module = _get_module_name()
+    formatter_ver = list(line for line in lines if line.startswith(module))[0]
+    _, version = formatter_ver.split(" ")[0].split("==")
+
+    readme_file = pathlib.Path(__file__).parent / "README.md"
+    content = readme_file.read_text(encoding="utf-8")
+    regex = r"\`([a-zA-Z0-9]+)=([0-9]+\.[0-9]+\.[0-9]+)\`"
+    result = re.sub(regex, f"`{module}={version}`", content, 0, re.MULTILINE)
+    content = readme_file.write_text(result, encoding="utf-8")
+
+
+@nox.session()
 def update_packages(session: nox.Session) -> None:
     """Update pip and npm packages."""
     session.install("wheel", "pip-tools")
     _update_pip_packages(session)
     _update_npm_packages(session)
+    _update_readme()
+
+
+def _contains(s, parts=()):
+    return any(p for p in parts if p in s)
+
+
+def _get_pypi_package_data(package_name):
+    json_uri = "https://pypi.org/pypi/{0}/json".format(package_name)
+    # Response format: https://warehouse.readthedocs.io/api-reference/json/#project
+    # Release metadata format: https://github.com/pypa/interoperability-peps/blob/master/pep-0426-core-metadata.rst
+    with url_lib.urlopen(json_uri) as response:
+        return json.loads(response.read())
+
+
+def _get_wheel_urls(data, version):
+    return list(
+        r["url"] for r in data["releases"][version] if _contains(r["url"], ("cp37","cp38","cp39","cp10","cp11",))
+    )
+
+
+def _download_and_extract(root, url, version):
+    root = os.getcwd() if root is None or root == "." else root
+    print(url)
+    with url_lib.urlopen(url) as response:
+        data = response.read()
+        with zipfile.ZipFile(io.BytesIO(data), "r") as wheel:
+            for zip_info in wheel.infolist():
+                # Ignore dist info since we are merging multiple wheels
+                if ".dist-info/" in zip_info.filename:
+                    continue
+                print("\t" + zip_info.filename)
+                wheel.extract(zip_info.filename, root)
+
+
+def _install_wheels(root, package_name, version="latest"):
+    from packaging.version import parse as version_parser
+
+    data = _get_pypi_package_data(package_name)
+
+    if version == "latest":
+        use_version = max(data["releases"].keys(), key=version_parser)
+    else:
+        use_version = version
+
+    for url in _get_wheel_urls(data, use_version):
+        _download_and_extract(root, url, use_version)
