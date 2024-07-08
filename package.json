@@ -135,6 +135,9 @@
             }
         ]
     },
+    "extensionDependencies": [
+        "pokey.command-server"
+    ],
     "dependencies": {
         "@vscode/python-extension": "1.0.1",
         "fs-extra": "^11.1.1",
