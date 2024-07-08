@@ -4,7 +4,7 @@
 import { ConfigurationChangeEvent, ConfigurationScope, WorkspaceConfiguration, WorkspaceFolder } from 'vscode';
 import { getInterpreterDetails } from './python';
 import { getConfiguration, getWorkspaceFolders } from './vscodeapi';
-
+import { PyvoiceSettings } from "./pyvoice_settings";
 export interface ISettings {
     cwd: string;
     workspace: string;
@@ -13,6 +13,7 @@ export interface ISettings {
     interpreter: string[];
     importStrategy: string;
     showNotifications: string;
+    settings: PyvoiceSettings | undefined;
 }
 
 export function getExtensionSettings(namespace: string, includeInterpreter?: boolean): Promise<ISettings[]> {
@@ -69,6 +70,7 @@ export async function getWorkspaceSettings(
         interpreter: resolveVariables(interpreter, workspace),
         importStrategy: config.get<string>(`importStrategy`) ?? 'useBundled',
         showNotifications: config.get<string>(`showNotifications`) ?? 'off',
+        settings: config.get<PyvoiceSettings>(`settings`)
     };
     return workspaceSetting;
 }
@@ -97,6 +99,7 @@ export async function getGlobalSettings(namespace: string, includeInterpreter?: 
         interpreter: interpreter,
         importStrategy: getGlobalValue<string>(config, 'importStrategy', 'useBundled'),
         showNotifications: getGlobalValue<string>(config, 'showNotifications', 'off'),
+        settings: getGlobalValue(config, "settings", undefined) as PyvoiceSettings | undefined
     };
     return setting;
 }
@@ -108,6 +111,7 @@ export function checkIfConfigurationChanged(e: ConfigurationChangeEvent, namespa
         `${namespace}.interpreter`,
         `${namespace}.importStrategy`,
         `${namespace}.showNotifications`,
+        `${namespace}.settings`
     ];
     const changed = settings.map((s) => e.affectsConfiguration(s));
     return changed.includes(true);

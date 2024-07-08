@@ -63,11 +63,11 @@ async function createServer(
         documentSelector: isVirtualWorkspace()
             ? [{ language: 'python' }]
             : [
-                  { scheme: 'file', language: 'python' },
-                  { scheme: 'untitled', language: 'python' },
-                  { scheme: 'vscode-notebook', language: 'python' },
-                  { scheme: 'vscode-notebook-cell', language: 'python' },
-              ],
+                { scheme: 'file', language: 'python' },
+                { scheme: 'untitled', language: 'python' },
+                { scheme: 'vscode-notebook', language: 'python' },
+                { scheme: 'vscode-notebook-cell', language: 'python' },
+            ],
         outputChannel: outputChannel,
         traceOutputChannel: outputChannel,
         revealOutputChannelOn: RevealOutputChannelOn.Never,
@@ -122,5 +122,18 @@ export async function restartServer(
 
     const level = getLSClientTraceLevel(outputChannel.logLevel, env.logLevel);
     await newLSClient.setTrace(level);
+
+    // pyvoice stuff
+    traceInfo(`Settings for workspace are ${JSON.stringify(workspaceSetting.settings, null, 4)}`);
+    if (workspaceSetting.settings) {
+        newLSClient?.sendNotification(
+            "workspace/didChangeConfiguration",
+            {
+                settings: workspaceSetting.settings,
+            }
+        )
+    };
+
+    
     return newLSClient;
 }
