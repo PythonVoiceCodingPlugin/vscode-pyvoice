@@ -19,8 +19,13 @@ async function getPythonExtensionAPI(): Promise<PythonExtension | undefined> {
     if (_api) {
         return _api;
     }
-    _api = await PythonExtension.api();
-    return _api;
+    try {
+        _api = await PythonExtension.api();
+        return _api;
+    } catch (error) {
+        traceError('Unable to get the python extension API, falling back to manual config: ', error);
+        return undefined;
+    }
 }
 
 export async function initializePython(disposables: Disposable[]): Promise<void> {

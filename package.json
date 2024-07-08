@@ -34,9 +34,6 @@
         "Linters",
         "Formatters"
     ],
-    "extensionDependencies": [
-        "ms-python.python"
-    ],
     "capabilities": {
         "virtualWorkspaces": {
             "supported": false,
