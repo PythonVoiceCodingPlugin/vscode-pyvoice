@@ -22,17 +22,12 @@
         "color": "#1e415e",
         "theme": "dark"
     },
-    "keywords": [
-        "python",
-        "pyvoice"
-    ],
+    "keywords": [],
     "engines": {
         "vscode": "^1.78.0"
     },
     "categories": [
-        "Programming Languages",
-        "Linters",
-        "Formatters"
+        "Other"
     ],
     "capabilities": {
         "virtualWorkspaces": {
