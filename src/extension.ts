@@ -18,7 +18,7 @@ import { getLSClientTraceLevel } from './common/utilities';
 import { createOutputChannel, onDidChangeConfiguration, registerCommand } from './common/vscodeapi';
 
 import { send_voicerpc_notification } from "./common/rpc";
-
+import { schedule_hints_generation } from "./common/listener";
 
 
 let last_tick = Date.now();
@@ -97,31 +97,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         // pyvoice stuff
         vscode.window.onDidChangeActiveTextEditor((e) => {
-            if (e?.document.languageId === "python") {
-                traceLog(Date.now() - last_tick);
-                if (Date.now() - last_tick < 3000) {
-                    traceLog("too fast");
-                    return;
-                }
-                last_tick = Date.now();
-                vscode.commands.executeCommand(`${serverId}.get_spoken`, 
-                    lsClient?.code2ProtocolConverter.asTextDocumentIdentifier(e?.document).uri,
-                    e?.selections.map((it) => lsClient?.code2ProtocolConverter.asRange(it))[0]?.start
-                );
+            if (e?.document) {
+                schedule_hints_generation(e.document);
             }
         }),
         vscode.workspace.onDidChangeTextDocument((e) => {
-            if (e?.document.languageId === "python") {
-                if (Date.now() - last_tick < 3000) {
-                    traceLog("too fast");
-                    return;
-                }
-                last_tick = Date.now();
-                if (vscode.window.activeTextEditor?.document.uri !== e?.document.uri) {
-                    traceLog("changes not in active text editor");
-                    return;
-                }
-                vscode.commands.executeCommand(`${serverId}.get_spoken`, "$file_uri", "$position");
+            if (e.document) {
+                schedule_hints_generation(e.document);
             }
         }),
         registerCommand(`${serverId}.get_spoken`, async () => {
