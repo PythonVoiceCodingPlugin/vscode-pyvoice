@@ -1,19 +1,19 @@
 {
     "name": "pyvoice",
     "displayName": "pyvoice",
-    "description": "Linting support for python files using `pyvoice`.",
-    "version": "2022.0.0-dev",
+    "description": "Experimental python language server for programming by voice",
+    "version": "0.1.0-rc.1",
     "preview": true,
     "serverInfo": {
         "name": "pyvoice",
         "module": "pyvoice"
     },
     "publisher": "mpourmpoulis",
-    "license": "MIT",
-    "homepage": "https://github.com/PythonVoiceCodingPlugin/PyvoiceVSCode",
+    "license": "GPL-v3",
+    "homepage": "https://github.com/PythonVoiceCodingPlugin/",
     "repository": {
         "type": "git",
-        "url": "https://github.com/PythonVoiceCodingPlugin/PyvoiceVSCode.git"
+        "url": "https://github.com/PythonVoiceCodingPlugin/vscode-pyvoice.git"
     },
     "bugs": {
         "url": "https://github.com/PythonVoiceCodingPlugin/PyvoiceVSCode/issues"
@@ -60,6 +60,7 @@
     },
     "contributes": {
         "configuration": {
+            "title": "PyVoice Settings",
             "properties": {
                 "pyvoice.args": {
                     "default": [],
@@ -119,6 +120,133 @@
                     ],
                     "scope": "machine",
                     "type": "string"
+                },
+                "pyvoice.settings.project.path": {
+                  "type": "string",
+                  "default": ".",
+                  "description": "The base path where your python project is located. It can be either absolute or relative to the path of the workspace root."
+                },
+                "pyvoice.settings.project.environmentPath": {
+                  "type": ["string", "null"],
+                  "default": null,
+                  "markdownDescription":"The path to the virtual environment for this project\nagain either absolute or relative to the workspace root.\n(NOT the project.path setting above)\n\nFurthermore, it could point either to the root of that environment,\nor the python binary inside that environment \n\n- \"project.environmentPath\": \".venv\"\n\n- \"project.environmentPath\": \".venv/bin/python\"\n\n- \"project.environmentPath\": \".venv\\Scripts\\python.exe\"\n\nWARNING\n\nwhile jedi will not execute python code from your code base\nit WILL execute the python binary of the associated environment!\nThere are automated checks in place to guard against binaries \nthat could for example have been injected by an attacker inside\nvcs controlled files. You can find more about this mechanism in \n     https://jedi.readthedocs.io/en/latest/_modules/jedi/api/environment.html\n     under the _is_safe function.\n\nHowever, it is still a good idea to only point this setting\nto environments that you trust.\n"
+
+                },
+                "pyvoice.settings.project.sysPath": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": null,
+                  "description": "A list of paths to override the sys path if needed.\nLeave this null to generate sys.path from the environment.\nWARNING: This will COMPLETELY override the sys.path \ngenerated from the environment.\n"
+                },
+                "pyvoice.settings.project.addedSysPath": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": [],
+                  "description": "Adds these paths at the end of the sys path."
+                },
+                "pyvoice.settings.project.smartSysPath": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "If enabled (default), adds paths from local directories. Otherwise, you will have to rely on your packages being properly configured on the sys.path."
+                },
+                "pyvoice.settings.hints.imports.stdlib.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of stdlib imports."
+                },
+                "pyvoice.settings.hints.imports.thirdParty.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "markdownDescription": "Enable or disable the generation of third-party imports.\nPyvoice will try to automatically discover the  dependencies \nof your project  and  is going\nto generate hints for their modules. In order to do so,pyvoice\nwill try:\n\n- pep621 dependencies in pyproject.toml\n- poetry dependencies in pyproject.toml\n- options.install_requires in setup.cfg\n- traditional requirements.txt\n\nNOTE: By default hints would be generated ONLY for your top level dependencies\naka distributions that you directly depend on, not transiet dependencies.\n"
+                },
+                "pyvoice.settings.hints.imports.thirdParty.includeDists": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": [],
+                  "description": "A list of third-party distributions to include modules from."
+                },
+                "pyvoice.settings.hints.imports.thirdParty.excludeDists": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": [],
+                  "description": "A list of third-party distributions to exclude."
+                },
+                "pyvoice.settings.hints.imports.project.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "markdownDescription": "Enable or disable the generation of project imports.\nThis generator is going to scan your project folders\nrecursively for pure python modules and generate hints for them.\nThis is performed in a manner somewhat similar to setuptools \n - if the project follows a source layout, the src/ folder would be scanned\n - if the projects follow flat layout, hints would be generated\n   for top level modules and recursively for top level packages\n   that match the filters used by setuptools.discover\n - the explicit layout, where user maps in their pyproject.toml\n   a set of packages/module names to folders containg their respective\n   respective code is not supported to yet\n"
+                },
+                "pyvoice.settings.hints.imports.explicitSymbols.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of import hints for symbols\nSo far, all of the imports hints generators are targeting modules\nHowever, there are cases where symbols like functions or classes\nthat are used so frequently in your project\nthat you want to be able to import them in a single step\nand without having to speak the name of the containing module\n\nFor example you might want to be able to speak\n     `import optional`\nin order to insert\n     `from typing import Optional`\n\nThe explicit symbols generator allows you to define a \nlist of modules that you want to generate hints for their symbols\n"
+                },
+                "pyvoice.settings.hints.imports.explicitSymbols.modules": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": ["typing"],
+                  "description": "A list of modules to generate hints for their defined symbols."
+                },
+                "pyvoice.settings.hints.expressions.locals.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of hints for local scope."
+                },
+                "pyvoice.settings.hints.expressions.locals.signature": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Hints from param names of the signatures of local scope variables."
+                },
+                "pyvoice.settings.hints.expressions.nonlocals.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of hints for non-local scope."
+                },
+                "pyvoice.settings.hints.expressions.nonlocals.signature": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Hints from param names of the signatures of non-local scope variables."
+                },
+                "pyvoice.settings.hints.expressions.globals.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of hints for global scope."
+                },
+                "pyvoice.settings.hints.expressions.globals.signature": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Hints from param names of the signatures of global scope variables."
+                },
+                "pyvoice.settings.hints.expressions.builtins.enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable or disable the generation of hints for built-in scope."
+                },
+                "pyvoice.settings.hints.expressions.builtins.signature": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Hints from param names of the signatures of built-in scope variables."
+                },
+                "pyvoice.settings.hints.expressions.limit": {
+                  "type": "integer",
+                  "default": 2000,
+                  "description": "An upper bound on the number of expressions to generate."
+                },
+                "pyvoice.settings.logging.level": {
+                  "type": "string",
+                  "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                  "default": "INFO",
+                  "description": "Set the logging level for the pyvoice executable."
                 }
             }
         },
