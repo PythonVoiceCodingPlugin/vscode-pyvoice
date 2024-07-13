@@ -9,7 +9,8 @@
 # run the above commands manually.
 
 # Required packages
-pygls
-packaging
+#pygls
+#packaging
 
 # TODO: Add your tool here
+pyvoice-language-server==0.0.0rc1
