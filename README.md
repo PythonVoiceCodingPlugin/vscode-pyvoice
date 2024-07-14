@@ -4,7 +4,7 @@ This is the vscode portion of [pyvoice](https://github.com/PythonVoiceCodingPlug
 
 
 <div>
-<img src="https://github.com/PythonVoiceCodingPlugin/assets/blob/main/pyvoice_logo.png" align="right" height=320 width=320/>
+<img src="https://raw.githubusercontent.com/PythonVoiceCodingPlugin/assets/main/pyvoice_logo.png" align="right" height=320 width=320/>
 </div>
 
 <!-- MarkdownTOC  autolink="true" -->

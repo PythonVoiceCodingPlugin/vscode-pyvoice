@@ -2,7 +2,7 @@
     "name": "pyvoice",
     "displayName": "pyvoice",
     "description": "Experimental python language server for programming by voice",
-    "version": "0.1.0-rc.1",
+    "version": "0.0.0",
     "preview": true,
     "serverInfo": {
         "name": "pyvoice",
@@ -16,7 +16,7 @@
         "url": "https://github.com/PythonVoiceCodingPlugin/vscode-pyvoice.git"
     },
     "bugs": {
-        "url": "https://github.com/PythonVoiceCodingPlugin/PyvoiceVSCode/issues"
+        "url": "https://github.com/PythonVoiceCodingPlugin/vscode-pyvoice/issues"
     },
     "galleryBanner": {
         "color": "#1e415e",
