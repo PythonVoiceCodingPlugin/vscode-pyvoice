@@ -127,9 +127,9 @@ pyparsing==3.1.2 \
     # via
     #   packaging
     #   pyvoice-language-server
-pyvoice-language-server==0.0.0rc1 \
-    --hash=sha256:3ea986f3798fc7a3f0222df167699010938605310bcca126e53f683f75663488 \
-    --hash=sha256:ff69c3989d1d1fc09758acb0b1c6b7ff9b3f38b995a28fd9fde7bbae7df66e41
+pyvoice-language-server==0.1.0 \
+    --hash=sha256:83baeacc6081f7f46ce4eb17955e7fc57f1b76088512850d37633f9264ce9578 \
+    --hash=sha256:991dfa62655b4221b3582353fef058c70ddd9cc1ea59db1f1e98d99b33aee45a
     # via -r ./requirements.in
 requirements-detector==1.0.3 \
     --hash=sha256:9124b0fa5808660e2ae65a06049dfe248a7b7df73f8e9d48d0ad7f7c790690ad \

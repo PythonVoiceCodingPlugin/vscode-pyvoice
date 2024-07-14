@@ -26,8 +26,6 @@ This is the vscode portion of [pyvoice](https://github.com/PythonVoiceCodingPlug
 
 <!-- /MarkdownTOC -->
 
-> [!WARNING]
-> Prerelease status
 
 # Features
 
