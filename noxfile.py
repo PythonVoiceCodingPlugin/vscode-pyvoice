@@ -38,6 +38,7 @@ def _update_pip_packages(session: nox.Session) -> None:
     session.run(
         "pip-compile",
         "--generate-hashes",
+        "--allow-unsafe",
         "--resolver=backtracking",
         "--upgrade",
         "./requirements.in",
@@ -45,6 +46,7 @@ def _update_pip_packages(session: nox.Session) -> None:
     session.run(
         "pip-compile",
         "--generate-hashes",
+        "--allow-unsafe",
         "--resolver=backtracking",
         "--upgrade",
         "./src/test/python_tests/requirements.in",
@@ -100,6 +102,7 @@ def _setup_template_environment(session: nox.Session) -> None:
     session.run(
         "pip-compile",
         "--generate-hashes",
+        "--allow-unsafe",
         "--resolver=backtracking",
         "--upgrade",
         "./requirements.in",
@@ -107,6 +110,7 @@ def _setup_template_environment(session: nox.Session) -> None:
     session.run(
         "pip-compile",
         "--generate-hashes",
+        "--allow-unsafe",
         "--resolver=backtracking",
         "--upgrade",
         "./src/test/python_tests/requirements.in",
