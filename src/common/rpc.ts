@@ -1,3 +1,36 @@
+//  on unix the multiprocessing.connection is going to prepend 4 bytes
+//  with the length of the payload
+//  we need to adjust accordingly with custom method for write
+
+
+function write_client(client: { once?: any; write: any; }, payload: Buffer | string) {
+    var os = require('os');
+    if (os.platform() == "win32") {
+        client.write(payload);
+    }
+    else {
+        var length = Buffer.alloc(4);
+        if (typeof payload == "string") {
+            payload = Buffer.from(payload);
+        }
+        length.writeInt32BE(payload.length);
+        client.write(length);
+        client.write(payload);
+    }
+}
+
+function read_data(data: Buffer) {
+    var os = require('os');
+    if (os.platform() == "win32") {
+        return data;
+    }
+    else {
+        return data.slice(4);
+    }
+}
+
+
+
 function get_server_path(service: string) {
     var os = require('os');
     var path = require('path');
@@ -15,8 +48,9 @@ function answer_challenge(client: { once: any; write: any; }, authkey: Buffer, c
     client.once("data", function (data: Buffer) {
         var message = data.slice(-20);
         var digest = hmac.createHmac('md5', authkey).update(message).digest();
-        client.write(digest);
+        write_client(client, digest);
         client.once("data", function (data: Buffer) {
+            data = read_data(data);
             if (data.toString() != "#WELCOME#") {
                 throw new Error("digest sent was rejected");
             }
@@ -29,13 +63,14 @@ function deliver_challenge(client: { write: (arg0: string | Buffer) => void; onc
     var crypto = require('crypto');
     var message = crypto.randomBytes(20);
     var full_message = Buffer.concat([Buffer.from("#CHALLENGE#", "ascii"), message]);
-    client.write(full_message);
+    write_client(client, full_message);
     client.once("data", function (data) {
+        data = read_data(data);
         var digest = crypto.createHmac('md5', authkey).update(message).digest();
         if (Buffer.compare(digest, data) != 0) {
             throw new Error(`dgigest received ws wrong ${digest} != ${data.toString()}`);
         }
-        client.write("#WELCOME#");
+        write_client(client, "#WELCOME#");
         callback(client);
     });
 }
@@ -62,7 +97,7 @@ function get_client(service: string, callback: { (client: any): void; (client: a
 export function send_voicerpc_notification(service: string, command: string, params: any) {
     var client = get_client(service, function (client) {
         var msg = { "jsonrpc": "2.0", "method": command, "params": params }
-        client.write(JSON.stringify(msg));
+        write_client(client, JSON.stringify(msg));
         client.end();
     });
 }
@@ -70,9 +105,12 @@ export function send_voicerpc_notification(service: string, command: string, par
 export function send_voicerpc_request(service: string, command: string, params: any, callback: any) {
     var client = get_client(service, function (client) {
         var msg = { "jsonrpc": "2.0", "method": command, "params": params }
-        client.write(JSON.stringify(msg));
-        client.once("data", callback);
-        client.end();
+        write_client(client, JSON.stringify(msg));
+        client.once("data", function (data: Buffer) {
+            data = read_data(data);
+            callback(data);
+            client.end();
+        });
     });
 }
 

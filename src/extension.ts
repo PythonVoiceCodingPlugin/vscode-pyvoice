@@ -59,7 +59,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             traceVerbose(`Using interpreter from ${serverInfo.module}.interpreter: ${interpreter.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
             lsClient?.onNotification("voice/sendRpc", (params) => {
-                send_voicerpc_notification("default", params.command, params.params);
+                try {
+                    send_voicerpc_notification("default", params.command, params.params);
+                } catch (e) {
+                    traceError(`Error in sendRpc: ${e}`);
+                }
             });
             return;
         }
@@ -69,7 +73,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             traceVerbose(`Using interpreter from Python extension: ${interpreterDetails.path.join(' ')}`);
             lsClient = await restartServer(serverId, serverName, outputChannel, lsClient);
             lsClient?.onNotification("voice/sendRpc", (params) => {
-                send_voicerpc_notification("default", params.command, params.params);
+                try {
+                    send_voicerpc_notification("default", params.command, params.params);
+                } catch (e) {
+                    traceError(`Error in sendRpc: ${e}`);
+                }
             });
             return;
         }
