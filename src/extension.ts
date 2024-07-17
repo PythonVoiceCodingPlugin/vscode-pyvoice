@@ -106,12 +106,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // pyvoice stuff
         vscode.window.onDidChangeActiveTextEditor((e) => {
             if (e?.document) {
-                schedule_hints_generation(e.document);
+                schedule_hints_generation(e.document, true);
             }
         }),
         vscode.workspace.onDidChangeTextDocument((e) => {
             if (e.document) {
-                schedule_hints_generation(e.document);
+                schedule_hints_generation(e.document, false);
             }
         }),
         registerCommand(`${serverId}.get_spoken`, async () => {
