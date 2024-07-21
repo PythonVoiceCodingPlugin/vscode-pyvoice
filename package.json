@@ -2,7 +2,7 @@
     "name": "pyvoice",
     "displayName": "pyvoice",
     "description": "Experimental python language server for programming by voice",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "preview": true,
     "icon": "icon.png",
     "serverInfo": {
